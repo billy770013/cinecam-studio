@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>CinéCam Studio</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="studio.css?v=1">
+</head>
+<body><div class="ambient" aria-hidden="true"></div>
+<div class="app">
+  <header>
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="3"/><path d="m16 10 5-3v10l-5-3M7 10h5"/></svg></div>
+    <div class="titre"><b>CinéCam Studio</b><small>BILLYCRAFT · CINEMATIC TOOLS</small></div>
+    <div class="sp"></div>
+    <div class="conn"><span class="dot" id="dot"></span><span id="connTxt">Connexion…</span></div>
+  <button class="performance" id="performance" type="button" aria-pressed="false" title="Activer ou désactiver les animations">◐ <span>Effets</span></button></header><div class="intro"><div><span class="eyebrow">VOTRE MONDE. VOTRE VISION.</span><h1>CRÉEZ L’INSTANT.<br><span>RACONTEZ L’HISTOIRE.</span></h1></div><div class="intro-note"><span class="intro-mark">✦</span><p>Une position. Un mouvement.<br>Et votre monde devient cinéma.</p><span class="intro-format">MINECRAFT BEDROCK <i></i> STUDIO PC</span></div></div>
+
+  <main>
+    <!-- colonne gauche : les plans -->
+    <div class="col">
+      <div class="carte" style="flex:1">
+        <h3><span class="section-icon" aria-hidden="true">01</span> Plans de caméra <span class="sp"></span><span class="muted" id="cptPts">0 point</span></h3>
+        <div class="corps" style="padding-bottom:8px">
+          <div class="row">
+            <button class="btn or" id="addGame"><img src="icons/ender_eye.png" alt=""> Ajouter : ma position en jeu</button>
+            <button class="btn" id="addManuel">✎ Coordonnées…</button>
+          </div>
+          <div class="aide">Place-toi dans le jeu (sur ta console), vise l'angle voulu, puis clique « ma position en jeu ».</div>
+        </div>
+        <div class="timeline" id="timeline"></div>
+      </div>
+    </div>
+
+    <!-- colonne droite : reglages + sequences -->
+    <div class="col">
+      <div class="carte">
+        <h3><span class="section-icon" aria-hidden="true">02</span> Réglages du plan</h3>
+        <div class="corps">
+          <label>Durée de chaque mouvement : <span id="durTxt" style="color:#fff">4 s</span></label>
+          <input type="range" id="dur" min="1" max="15" step="1" value="4">
+          <label>Fluidité du mouvement</label>
+          <select id="ease">
+            <option value="0">Douce (recommandé)</option>
+            <option value="1">Linéaire</option>
+            <option value="2">Très douce</option>
+            <option value="3">Dynamique</option>
+          </select>
+          <label class="chk"><input type="checkbox" id="hud" checked> Cacher l'interface pendant le plan</label>
+          <label class="chk"><input type="checkbox" id="loop"> Boucle (recommence en continu)</label>
+        </div>
+      </div>
+      <div class="carte" style="flex:1">
+        <h3><span class="section-icon" aria-hidden="true">03</span> Séquences</h3>
+        <div class="corps">
+          <div class="row">
+            <input type="text" id="seqNom" placeholder="Nom de la séquence" maxlength="24">
+            <button class="btn" id="seqSave" style="flex:none" aria-label="Enregistrer la séquence">Enregistrer</button>
+          </div>
+          <div id="seqList" style="margin-top:10px"></div>
+          <div class="aide" style="margin-top:10px"><img src="icons/clock.png" style="width:13px;vertical-align:-2px"> Les séquences sont gardées sur ton PC.</div>
+          <hr style="border:0;border-top:2px solid rgba(0,0,0,.35);margin:14px 0">
+          <button class="btn" id="tool" style="width:100%"><img src="icons/recovery_compass.png" alt=""> M'envoyer l'objet 🎬 en jeu</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer><div class="footer-note"><span class="live-signal"></span><div><b>LE STUDIO EST À VOUS.</b><small>Préparez vos plans, puis lancez la caméra.</small></div></div>
+    <button class="btn vert" id="play">▶ Lire le plan sur ma console</button>
+    <button class="btn rouge" id="stop">■ Stop</button>
+  </footer>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div><dialog id="pointDialog" aria-labelledby="pointTitle"><form id="pointForm"><div class="dialog-head"><div><span class="eyebrow">NOUVEAU POINT</span><h2 id="pointTitle">Composez votre cadre.</h2></div><button type="button" class="icon-close" id="closePoint" aria-label="Fermer">×</button></div><p class="muted">Ajoutez une position et l’orientation de votre caméra.</p><div class="coord-grid"><label>X<input id="pointX" type="number" step="any" required placeholder="0"></label><label>Y<input id="pointY" type="number" step="any" required placeholder="80"></label><label>Z<input id="pointZ" type="number" step="any" required placeholder="0"></label></div><div class="coord-grid angles"><label>Horizontal (°)<input id="pointRY" type="number" step="any" value="0" required></label><label>Vertical (°)<input id="pointRX" type="number" min="-90" max="90" step="any" value="0" required></label></div><div class="dialog-footer"><button type="button" class="btn" id="cancelPoint">Annuler</button><button class="btn or" type="submit">Ajouter ce point ↗</button></div></form></dialog>
+
+<script>
+const $ = (s) => document.querySelector(s);
+let state = { player: null, players: [], points: [], };
+function cfg() { return { dur: +$('#dur').value, easeIdx: +$('#ease').value, hud: $('#hud').checked, loop: $('#loop').checked }; }
+
+function toast(t, err) {
+  const e = document.createElement('div'); e.className = 'toast' + (err ? ' err' : '');
+  const b = document.createElement('b'); b.textContent = err ? 'Oups !' : 'CinéCam'; const s = document.createElement('span'); s.textContent = t;
+  e.append(b, s); $('#toasts').appendChild(e); setTimeout(() => e.remove(), 4200);
+}
+async function api(path, method, body) {
+  const o = { method: method || 'GET', headers: { 'Content-Type': 'application/json' } };
+  if (body) o.body = JSON.stringify(body);
+  const r = await fetch('/api/' + path, o);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'erreur');
+  return j;
+}
+
+// --- connexion + joueurs ---
+async function majJoueurs() {
+  try {
+    const j = await api('players');
+    state.players = j.players || [];
+    $('#dot').className = 'dot ok';
+    if (!state.players.length) { $('#connTxt').textContent = 'Serveur OK · aucun joueur en ligne'; state.player = null; }
+    else {
+      if (!state.players.includes(state.player)) state.player = state.players[0];
+      $('#connTxt').textContent = 'Connecté · ' + state.player;
+    }
+  } catch (e) { $('#dot').className = 'dot off'; $('#connTxt').textContent = 'Serveur injoignable'; }
+  majBoutons();
+}
+function majBoutons() {
+  const ok = !!state.player, n = state.points.length;
+  $('#addGame').disabled = !ok; $('#tool').disabled = !ok;
+  $('#play').disabled = !ok || !n; $('#stop').disabled = !ok;
+  $('#play').textContent = n ? `▶ Lire le plan (${n}) sur ma console` : '▶ Ajoute des points';
+}
+
+// --- points ---
+function render() {
+  const t = $('#timeline');
+  $('#cptPts').textContent = state.points.length + ' point' + (state.points.length > 1 ? 's' : '');
+  if (!state.points.length) { t.innerHTML = '<div class="vide"><div class="empty-visual" aria-hidden="true"><span class="corner a"></span><span class="corner b"></span><span class="corner c"></span><span class="corner d"></span><span class="lens">✦</span></div><b>Chaque histoire commence<br>par un premier cadre.</b><p>Ajoutez votre position en jeu ou saisissez<br>vos coordonnées pour commencer.</p><span class="empty-tag">VOTRE TIMELINE VOUS ATTEND</span></div>'; majBoutons(); return; }
+  t.innerHTML = '';
+  state.points.forEach((p, i) => {
+    const d = document.createElement('div'); d.className = 'plan';
+    d.innerHTML = `<div class="num">${i + 1}</div>
+      <div class="info"><div class="co">X ${Math.round(p.x)}  Y ${Math.round(p.y)}  Z ${Math.round(p.z)}</div>
+      <div class="an">angle : ${Math.round(p.ry)}° / ${Math.round(p.rx)}°</div></div>
+      <div class="act">
+        <button data-a="up" ${i === 0 ? 'disabled' : ''} title="Monter">▲</button>
+        <button data-a="down" ${i === state.points.length - 1 ? 'disabled' : ''} title="Descendre">▼</button>
+        <button data-a="go" title="Voir ce point">👁</button>
+        <button data-a="del" class="x" title="Supprimer">✕</button>
+      </div>`;
+    d.querySelectorAll('button').forEach((b) => b.onclick = () => action(b.dataset.a, i));
+    t.appendChild(d);
+  });
+  majBoutons();
+}
+function action(a, i) {
+  if (a === 'del') state.points.splice(i, 1);
+  else if (a === 'up' && i > 0) [state.points[i - 1], state.points[i]] = [state.points[i], state.points[i - 1]];
+  else if (a === 'down' && i < state.points.length - 1) [state.points[i + 1], state.points[i]] = [state.points[i], state.points[i + 1]];
+  else if (a === 'go') { voirPoint(state.points[i]); return; }
+  render();
+}
+async function voirPoint(p) { // joue un plan d'un seul point = la camera se pose dessus
+  if (!state.player) return;
+  try { await api('play', 'POST', { player: state.player, points: [p], cfg: { ...cfg(), loop: false } }); toast('Caméra placée sur ce point'); }
+  catch (e) { toast(e.message, 1); }
+}
+$('#addGame').onclick = async () => {
+  if (!state.player) return;
+  try {
+    const p = await api('where?player=' + encodeURIComponent(state.player));
+    state.points.push(p); render(); toast('Point ' + state.points.length + ' ajouté');
+  } catch (e) { toast(e.message, 1); }
+};
+$('#addManuel').onclick = () => { $('#pointDialog').showModal(); $('#pointX').focus(); };
+$('#closePoint').onclick = $('#cancelPoint').onclick = () => $('#pointDialog').close();
+$('#pointForm').onsubmit = (event) => {
+ event.preventDefault();
+ const p={x:+$('#pointX').value,y:+$('#pointY').value,z:+$('#pointZ').value,ry:+$('#pointRY').value,rx:+$('#pointRX').value};
+ if(!Object.values(p).every(Number.isFinite))return toast('Les coordonnées doivent être des nombres valides.',1);
+ state.points.push(p);render();$('#pointDialog').close();toast('Point '+state.points.length+' ajouté');
+};
+$('#tool').onclick = async () => { try { await api('tool', 'POST', { player: state.player }); toast('Objet 🎬 envoyé dans ton inventaire'); } catch (e) { toast(e.message, 1); } };
+
+// --- lecture ---
+$('#play').onclick = async () => {
+  if (!state.player || !state.points.length) return;
+  try { await api('play', 'POST', { player: state.player, points: state.points, cfg: cfg() }); toast('🎬 Action ! Lance ta capture sur la console'); }
+  catch (e) { toast(e.message, 1); }
+};
+$('#stop').onclick = async () => { try { await api('stop', 'POST', { player: state.player }); toast('Caméra arrêtée'); } catch (e) { toast(e.message, 1); } };
+$('#dur').oninput = () => $('#durTxt').textContent = $('#dur').value + ' s';
+
+// --- sequences (locales) ---
+function escapeHTML(value){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+const SKEY = 'cinecam.seqs';
+const seqs = () => { try { return JSON.parse(localStorage.getItem(SKEY) || '{}'); } catch { return {}; } };
+function renderSeqs() {
+  const o = seqs(), noms = Object.keys(o), d = $('#seqList');
+  if (!noms.length) { d.innerHTML = '<div class="muted">Aucune séquence enregistrée.</div>'; return; }
+  d.innerHTML = '';
+  noms.forEach((n) => {
+    const e = document.createElement('div'); e.className = 'plan'; e.style.padding = '8px 10px';
+    e.innerHTML = `<div class="info"><div class="co" style="font-family:var(--font);font-weight:600">${escapeHTML(n)}</div><div class="an">${o[n].points.length} points</div></div>
+      <div class="act"><button data-a="load" title="Charger">📂</button><button data-a="del" class="x" title="Supprimer">✕</button></div>`;
+    e.querySelector('[data-a=load]').onclick = () => { state.points = JSON.parse(JSON.stringify(o[n].points)); if (o[n].cfg) { $('#dur').value = o[n].cfg.dur; $('#durTxt').textContent = o[n].cfg.dur + ' s'; $('#ease').value = o[n].cfg.easeIdx; $('#hud').checked = o[n].cfg.hud; $('#loop').checked = o[n].cfg.loop; } render(); toast('« ' + n + ' » chargée'); };
+    e.querySelector('[data-a=del]').onclick = () => { const a = seqs(); delete a[n]; localStorage.setItem(SKEY, JSON.stringify(a)); renderSeqs(); };
+    d.appendChild(e);
+  });
+}
+$('#seqSave').onclick = () => {
+  const n = $('#seqNom').value.trim(); if (!n) { toast('Donne un nom', 1); return; }
+  if (!state.points.length) { toast('Aucun point à enregistrer', 1); return; }
+  const a = seqs(); a[n] = { points: state.points, cfg: cfg() }; localStorage.setItem(SKEY, JSON.stringify(a));
+  $('#seqNom').value = ''; renderSeqs(); toast('Séquence « ' + n + ' » enregistrée');
+};
+
+// --- preference visuelle locale ---
+function setPerformance(value){document.documentElement.classList.toggle('performance-mode',value);$('#performance').setAttribute('aria-pressed',String(value));$('#performance').title=value?'Réactiver les animations':'Désactiver les animations';}
+try{setPerformance(localStorage.getItem('cinecam.performance')==='true')}catch{}
+$('#performance').onclick=()=>{const value=!document.documentElement.classList.contains('performance-mode');setPerformance(value);try{localStorage.setItem('cinecam.performance',String(value))}catch{}};
+// --- vie de l'appli ---
+setInterval(() => fetch('/api/ping').catch(() => {}), 20000);
+fetch('/api/ping').catch(() => {});
+majJoueurs(); setInterval(majJoueurs, 8000);
+render(); renderSeqs();
+</script>
+</body>
+</html>
